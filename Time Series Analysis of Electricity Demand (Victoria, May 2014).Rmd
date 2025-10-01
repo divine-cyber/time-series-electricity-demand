@@ -1,0 +1,106 @@
+---
+title: "Time Series Analysis of Electricity Demand (Victoria, May 2014)"
+author: "Divine Gatebuka I"
+date: "2025-09-24"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library (fpp3)
+library(slider)
+library(ggplot2)
+library(lubridate)
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Introduction
+
+```
+This project explores half-hourly electricity demand in Victoria, Australia using the vic_elec dataset from the fpp3 package.
+The objective is to apply moving averages with different window sizes to examine how smoothing affects the interpretation of demand patterns.
+
+We focus on May 2014, a single month of data.
+```
+
+```{r}
+May2014 <- vic_elec %>%
+  filter(yearmonth(Time) == yearmonth("2014 May"))
+head(May2014) #to view the filtered data
+```
+
+#Moving Average Smoothing
+```
+We compute moving averages with three different window sizes:
+
+12-hour (24 half-hour intervals)
+24-hour (48 half-hour intervals)
+1-week (336 half-hour intervals)
+```
+```{r}
+May2014_MA <- May2014 %>%
+  mutate(
+    MA12  = slider::slide_dbl(Demand, mean, .before = 12,  .after = 11,  .complete = TRUE),   
+    MA24  = slider::slide_dbl(Demand, mean, .before = 24,  .after = 23, .complete = TRUE),   
+    MA168 = slider::slide_dbl(Demand, mean, .before = 168, .after = 167, .complete = TRUE),   
+    ind   = row_number() 
+  )
+
+ggplot(May2014_MA) +
+  geom_line(aes(x = ind, y = Demand, color = 'Half-Hour Demand')) +
+  geom_line(aes(x = ind, y = MA12, color = '12-Hour MA')) +
+  geom_line(aes(x = ind, y = MA24, color = '24-Hour MA')) +
+  geom_line(aes(x = ind, y = MA168, color = '1-Week MA')) +
+  labs(
+    title = "Electricity Demand and Moving Averages (Victoria, May 2014)",
+    x = "Half-Hour Index",
+    y = "Demand (MWh)"
+  ) +
+  scale_color_manual(values = c("Half-Hour Demand" = "purple",
+                                "12-Hour MA" = "green",
+                                "24-Hour MA" = "darkgreen",
+                                "1-Week MA" = "red"))
+```
+
+# Observations
+
+```
+* Raw demand (purple) shows large short-term fluctuations and strong daily seasonality.
+
+* 12-hour MA (green) smooths the demand curve while still capturing daily cycles.
+
+* 24-hour MA (dark green) provides a smoother line, revealing clearer daily demand cycles with reduced noise.
+
+* 1-week MA (red) smooths out almost all daily fluctuations, highlighting broader monthly trends:
+
+Demand decreases during the first half of May.
+
+Demand increases in the second half of May.
+```
+
+# Key Insights
+```
+Window size matters:
+
+Shorter windows (12h, 24h) are better for capturing daily patterns.
+
+Longer windows (1 week) reveal long-term shifts in demand.
+
+Trade-off: Increasing the window reduces noise but risks losing detail about daily cycles.
+
+Practical implication: Utility providers may use short windows for operational planning (day-to-day demand) and longer windows for capacity planning and forecasting.
+```
+
+# Methodological Note
+```
+When setting .before = 12 and .after = 11, the window size equals 24 half-hour periods (12 hours total) because the current observation is included.
+This prevents unintentional off-by-one errors (e.g., a 25-hour window).
+```
+
+# Information
+```
+Why use moving averages ?
+
+* It reduces the noise to emphasize the signal that can contain trends and cycles
+* It removes seasonal patterns to reveal underlying trends. To remove it, set the length of your moving average to equal the pattern’s length.
+
+**More info:** [Statistics by Jim – Moving Averages and Smoothing](https://statisticsbyjim.com/time-series/moving-averages-smoothing/#:~:text=Moving%20averages%2C%20also%20known%20as,more%20complex%20ways%20of%20smoothing.)
+```
